@@ -14,8 +14,8 @@ try:
     #定义manger VRF和DMZ VRF的互联地址
     #manage=input('输入manage VRF地址：')
     #DMZ=input('输入DMZ VRF地址：')
-    manage='10.190.143.1'
-    DMZ='10.190.143.2'
+    manage='192.168.0.1'
+    DMZ='192.168.0.2'
     #提取各浮动IP地址
     class ip():
         print('在防火墙上需要配置的路由')
