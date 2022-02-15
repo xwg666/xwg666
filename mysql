@@ -1,0 +1,81 @@
+import os.path
+import pandas as pd
+import pymysql
+from sqlalchemy import create_engine
+dic=pymysql.connect(host='124.71.30.206',
+                    user='root',
+                    db='test',
+                    password='123456',
+                    charset='utf8')
+cursor=dic.cursor()
+table=input("输入查询的表:")
+row=input("查询几行：")
+mysql=cursor.execute("select id,name,age from %s order by id limit %s" % (table,row))
+data=cursor.fetchall()
+print(data)
+for i in data:
+    print(i)
+    id1=i[0]
+    name1=i[1]
+    age1=i[2]
+    print("id=%s,name=%s,age=%s" % (id1,name1,age1))
+    print(f'id={id1}',f'name={name1}') #测试，写法一样
+    
+#把数据库里的数据写入TXT文件
+engine=create_engine('mysql+pymysql://root:123456@124.71.30.206:3306/test')
+df_read=pd.read_sql_query('select * from user1',engine)
+with open(os.path.join(os.path.expanduser('~'),'Desktop/mysql.txt'),mode='w') as f:
+    f.write(str(df_read))
+    
+#更新数据
+in_table=input("输入要插入的表：")
+sql4=cursor.execute("select id from %s order by id desc limit 1" % in_table)
+data=cursor.fetchall()
+for j in data:
+    id=j[0]
+    print("id序号最大为:%s" % id)
+
+in_id=input("输入id:")
+in_name=input("输入name:")
+in_age=input("输入age:")
+#sql2=cursor.execute("insert into %s (id,name,age) select id,name,age from user1 where not exists (select id from %s)" % (in_table,in_table))
+
+try:
+    sql3=cursor.execute("insert into %s (id,name,age) values (%s,'%s',%s)" % (in_table,in_id,in_name,in_age))
+    dic.commit()
+    print("插入成功")
+    sql = cursor.execute("select * from user1 where id='%s' and name='%s'" % (in_id, in_name))
+    data1 = cursor.fetchall()
+    for i in data1:
+        id2 = i[0]
+        name2 = i[1]
+        age2 = i[2]
+        print("id=%s,name=%s,age=%s" % (id2, name2, age2))
+except:
+    print("error,id为主键，具有唯一性,重新插入")
+
+#增删列
+ask1=input("是否进行增加列：y/n")
+if ask1 == "y":
+    table1=input("需要修改的表：")
+    add_column=input("增加的列：")
+    add_column_char=input("属性：")
+    try:
+        add_sql=cursor.execute("alter table %s add column %s %s " % (table1,add_column,add_column_char))
+        dic.commit()
+        print("插入列成功！")
+        select_sql=cursor.execute("select id,name,age,date,%s from %s limit 3" % (add_column,table1))
+        data3=cursor.fetchall()
+        print("读取成功！")
+        for h in data3:
+            id3=h[0]
+            name3=h[1]
+            age3=h[2]
+            date3=h[3]
+            add_column=h[4]
+            print("id=%s,name=%s,age=%s,date=%s,add_column=%s" % (id3, name3, age3,date3,add_column))
+    except:
+        print("------------error------------")
+else:
+    print("skip")
+cursor.close()
