@@ -1,0 +1,134 @@
+import copy
+import win32com.client  # python -m pip install pywin32
+import os, datetime, xlrd
+from tkinter import *
+import tkinter.messagebox as tm
+import tkinter.filedialog as tk
+import pandas as pd
+from ctypes import *
+#对写入文本的数据进行设置
+pd.options.display.max_columns = None   #显示所有列
+pd.options.display.max_rows = None
+pd.set_option('display.expand_frame_repr', False)  #不折叠数据
+pd.set_option('display.unicode.east_asian_width', True) #设置输出右对齐
+
+root = tk.Tk()
+root.withdraw()
+name = tk.askopenfilename()
+filename = name.replace('/', '\\')
+print(filename)
+frame = os.path.splitext(filename)
+print(frame)
+win_path = '\\'.join(filename.split('\\')[:-1])
+date = datetime.date.today()
+ls= []  #存放路由规则的目的和下一跳对
+dict={}  #放置修改过的浮动ip的kv值
+def float_ip(row):
+    list = ['regionlb_lvs_float_ip', 'podlb_lvs_float_ip',
+            'podlb_lvs_adv_float_ip', 'reverselb_lvs_float_ip',
+            'regionlb_lvs_alb_float_ip', 'podlb_lvs_adv_alb_float_ip']
+    for i in list:
+        if row.参数key == i and len(row.规划值)!=0:
+            for y in row.规划值:
+                if [0-9] and '.' in y:
+                    dict[i]=row.规划值
+
+# 当无法直接读取excel文件时，可以尝试转换格式
+def transform():
+    e = win32com.client.gencache.EnsureDispatch('excel.application')
+    pro = e.Workbooks.Open(filename)  # 打开要转换的excel
+    new_excel_path = frame[0] + '_' + str(date) + ".xls"
+    pro.SaveAs(new_excel_path, FileFormat=56)  # 另存为xls格式
+    pro.Close()
+    e.Application.Quit()
+    print(new_excel_path)
+    return new_excel_path
+
+def exec(path):
+    data = pd.read_excel(path, sheet_name=1, usecols=[2, 3])
+    data.apply(float_ip, axis=1)
+
+def save_data():
+    with open(win_path + '\高阶服务路由导出表.txt', 'w', encoding='utf8') as f:
+        f.write("浮动IP地址:" + '\n')
+        for j,s in dict.items():
+            f.write(str(j)+':   '+str(s) + '\n')
+
+        f.write('\n' + '防火墙路由配置:' + '\n')
+        dict1=copy.copy(dict)   #复制一个对象，进行重组元素
+        for d in ['regionlb_lvs_alb_float_ip','podlb_lvs_adv_alb_float_ip']:
+            dict1.pop(d)
+        for k,m in dict1.items():
+            if k == 'regionlb_lvs_float_ip':
+                f.write(f'ip route-static {m}  255.255.255.255 Manger VRF'+'\n')
+            else:
+                f.write(f'ip route-static {m}  255.255.255.255 DMZ VRF'+'\n')
+
+        f.write('\n'+'ALB配置路由:(包含SWR、AOM和CCE时需要配置)'+'\n')
+        for a,b in dict.items():
+            if a == 'regionlb_lvs_alb_float_ip':
+                f.write(f'ip route-static {b}  255.255.255.255 Manger VRF' + '\n')
+            elif a == 'podlb_lvs_adv_alb_float_ip':
+                f.write(f'ip route-static {b}  255.255.255.255 DMZ VRF' + '\n')
+
+def route(path):
+    data1 = pd.read_excel(path, sheet_name=6,usecols=[n for n in range(7)])
+    n = int(data1.shape[0])
+    data2 = data1.loc[[i for i in range(0, n)]]
+    print(data2)
+    l = data2['目标地址'] + data2['下一跳']
+    for i in l:
+        ls.append(str(i).split('/32'))
+    print(ls)
+    with open(win_path + '\高阶服务路由导出表.txt', 'a', encoding='utf8') as f:
+        f.write('\n' + '路由规划:' + '\n')
+        if data2['是否需要NQA'][1]== 'YES':
+            f.write('开启了NQA，要进行如下配置:'+'\n')
+            for x in ls:
+                for k, v in dict.items():
+                    l=str(k).split('_')
+                    if x[0] == v:
+                        if l[0]=='regionlb':
+                            f.write( f'ip route-staic vpn-instance Manage {x[0]}'
+                                              f' 255.255.255.255 {x[1]} track nqa {l[0]} icmp_{x[1]}' + '\n')
+                        elif l[0]=='podlb' or l[0]=='reverselb':
+                            f.write(f'ip route-staic vpn-instance DMZ {x[0]}'
+                                    f' 255.255.255.255 {x[1]} track nqa {l[0]} icmp_{x[1]}' + '\n')
+        else:
+            f.write('未开NQA，则作如下配置:' + '\n')
+            for x in ls:
+                # f.write(f'ip route-staic {x[0]} 255.255.255.255 {x[1]}'+'\n')
+                for k, v in dict.items():
+                    l=str(k).split('_')
+                    if x[0] == v:
+                        if l[0] == 'regionlb':
+                            f.write( f'ip route-staic vpn-instance Manage {x[0]}'
+                                              f' 255.255.255.255 {x[1]}'  + '\n')
+                    elif l[0] == 'podlb' or l[0]=='reverselb':
+                        f.write(f'ip route-staic vpn-instance DMZ {x[0]}'
+                                f' 255.255.255.255 {x[1]}'+'\n')
+        f.write('\n'+'附:以下为路由设计表:'+'\n')
+        f.write(str(data2))
+        print(str(data2))
+
+def openfile():
+    button1 = Button(root, text="打开文本", command=os.startfile(win_path + '\高阶服务路由导出表.txt'))
+    button1.pack()
+
+if __name__ == '__main__':
+    if len(name) == 0:  #未选择文件则提示
+        tm.showinfo('提示', "请选择高阶服务导出表！")
+    else:
+        # 默认打开xlsx文件
+        try:
+            exec(filename)
+            save_data()
+            route(filename)
+        # 如果报错，无法执行xlsx，则转换为xls的文件
+        except:
+            # if frame[-1] == '.xlsx' or frame[-1] == '.csv':
+            exec(transform())
+            save_data()
+            route(transform())
+        # 完成后打开文件
+        openfile()
