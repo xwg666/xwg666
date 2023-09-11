@@ -21,8 +21,8 @@ def my_function():
     return '执行完成'
 # 定义每天早上8:00执行的任务
 def scheduled_job():
-    schedule.every().day.at("11:51").do(my_function)
-    print('开始执行定时任务')
+    schedule.every().day.at("08:00").do(my_function)
+    print('启动定时任务')
     while True:
         schedule.run_pending()
         time.sleep(10)
