@@ -31,15 +31,8 @@ def vedio_time(url):
     time_info = re.search(r'bpx-player-ctrl-time-duration">(.*?)<', page).group(1)
     minute = time_info.split(':')[-2]
     return [time_info,minute]
+
 def bili_list(url,page):
-    headers = {
-        "User-Agent": random.choice(["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36","Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0"]),
-        "Cookie": "Hm_lvt_414bd23f4090657a5e2034429c836cca=1692187873; Hm_lpvt_414bd23f4090657a5e2034429c836cca=1692187873; web_token=TdKcNN7OfNbEGGEZ5tNiW59FJgG4HNbXRXyzzbclo3eGVmWu0CpjadNH1rCK5m8p6P0cUpJLjjOZjAK2Z8dPlVwIAdBJybWKzU-p8AGxvtLXsT-0=; is_guest=1",
-        "Referer": "https://www.bilibili.com/",
-        # "Accept-Encoding": "gzip, deflate"  # 指定不要使用Brotli压缩
-    }
-
-
     options = webdriver.ChromeOptions()  # 创建一个选项 最终运行按照选项执行
     options.add_argument('--headless')  # 隐藏浏览器
     driver = webdriver.Chrome(options=options)
@@ -591,13 +584,13 @@ def A9VG():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    print('开始上传数据库')
+    print('开始上传到数据库')
     upload_date=request.args.get('date',datetime.datetime.today().strftime("%Y-%m-%d"))
     file_path = f'D:\MP4\\{upload_date}'
     if not os.path.exists(file_path):
         os.mkdir(file_path)
     #获取token
-    # url = "http://192.168.5.9:9092/move/user/accountLogin"
+    # url = "http://192.168.1.1:9090/move/user/accountLogin"
     # payload = json.dumps({
     #     "userAccount": "18077133521",
     #     "userPassword": "q12345"
@@ -622,8 +615,8 @@ def upload():
             if file_size<=200:
                 # print('视频大小：',file_size)
                 if i.split('.')[0] == j.split('.')[0]:
-                    # path = f"http://192.168.5.39/download/{datetime.datetime.today().strftime('%Y-%m-%d')}/coverimg/{i}"
-                    upload_path = 'http://192.168.5.27:9094/posts-resource/batchAdd'
+                    # path = f"http://127.0.0.1/download/{datetime.datetime.today().strftime('%Y-%m-%d')}/coverimg/{i}"
+                    upload_path = 'http://192.168.1.1:9090/posts-resource/batchAdd'
                     data = {
                         "postsResourceList": [
                             {
@@ -640,7 +633,7 @@ def upload():
                         ]
                     }
                     headers = {
-                        'token': "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMmQyYjcwMjJjZTQ1NDg3YThhZjZiNzk0NTU1MDkyMTMiLCJsb2dpbl90eXBlIjoiQVBQIiwidXNlcl9rZXkiOiIyZDJiNzAyMmNlNDU0ODdhOGFmNmI3OTQ1NTUwOTIxMyIsInRiX3VzZXJfaWQiOjgzNzgxLCJ1c2VybmFtZSI6Iua3seWcs-esrOS4gOW4hSJ9.QWCXSmHTNjd1wmeOlfdAihdCgmuP1kEa5Fm9Sq7NHXU",
+                        'token': "xxxxxxxxxxxxxxxxxxxxxxxx",
                         "Content-Type": "application/json"}
                     r = requests.post(upload_path, data=json.dumps(data), headers=headers)
                     print(r.text)
@@ -655,7 +648,7 @@ def upload():
             with  open(f'{file_path}\云段子.txt', 'r', encoding='utf-8') as f:
                 for i in f.readlines():
                     j = i.replace('\n', '').replace(' ', '').replace("'", '')
-                    upload_path = 'http://192.168.5.27:9094/posts-resource/batchAdd'
+                    upload_path = 'http://192.168.1.1:9090/posts-resource/batchAdd'
                     data = {
                         "postsResourceList": [
                             {
@@ -672,7 +665,7 @@ def upload():
                         ]
                     }
                     headers = {
-                        'token': "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMmQyYjcwMjJjZTQ1NDg3YThhZjZiNzk0NTU1MDkyMTMiLCJsb2dpbl90eXBlIjoiQVBQIiwidXNlcl9rZXkiOiIyZDJiNzAyMmNlNDU0ODdhOGFmNmI3OTQ1NTUwOTIxMyIsInRiX3VzZXJfaWQiOjgzNzgxLCJ1c2VybmFtZSI6Iua3seWcs-esrOS4gOW4hSJ9.QWCXSmHTNjd1wmeOlfdAihdCgmuP1kEa5Fm9Sq7NHXU",
+                        'token': "xxxxxxxxxxxxxxxxx",
                         "Content-Type": "application/json"}
                     r = requests.post(upload_path, data=json.dumps(data), headers=headers)
                     print(data)
@@ -683,7 +676,7 @@ def upload():
         pass
 
             # else:
-            #     upload_path = 'http://192.168.5.9:9092/party/posts-resource/batchAdd'
+            #     upload_path = 'http://192.168.1.1:9090/party/posts-resource/batchAdd'
             #     data = {
             #         "postsResourceList": [
             #             {
@@ -694,7 +687,7 @@ def upload():
             #                 "overview": "",
             #                 "picture": "",
             #                 "title": i.replace('.mp4',''),
-            #                 "video": f"http://192.168.5.39/download/{datetime.datetime.today().strftime('%Y-%m-%d')}/{i}",
+            #                 "video": f"http://127.0.0.1/download/{datetime.datetime.today().strftime('%Y-%m-%d')}/{i}",
             #                 "videoCoverImgUrl": ""
             #             }
             #         ]
@@ -730,7 +723,7 @@ def upload():
                 url = f"http://192.168.5.145/download/{upload_date}/images/{z}" + ','
                 s += url
             s = s[:-1]
-            upload_path = 'http://192.168.5.27:9094/posts-resource/batchAdd'
+            upload_path = 'http://192.168.1.1:9090/posts-resource/batchAdd'
             data = {
                 "postsResourceList": [
                     {
@@ -747,7 +740,7 @@ def upload():
                 ]
             }
             headers = {
-                'token': "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMmQyYjcwMjJjZTQ1NDg3YThhZjZiNzk0NTU1MDkyMTMiLCJsb2dpbl90eXBlIjoiQVBQIiwidXNlcl9rZXkiOiIyZDJiNzAyMmNlNDU0ODdhOGFmNmI3OTQ1NTUwOTIxMyIsInRiX3VzZXJfaWQiOjgzNzgxLCJ1c2VybmFtZSI6Iua3seWcs-esrOS4gOW4hSJ9.QWCXSmHTNjd1wmeOlfdAihdCgmuP1kEa5Fm9Sq7NHXU",
+                'token': "xxxxxxxxxxxxxxxxxxx",
                 "Content-Type": "application/json"}
             r = requests.post(upload_path, data=json.dumps(data), headers=headers)
             print(r.text)
@@ -766,7 +759,7 @@ def upload():
     #     print(cover)
     #     cover_name=cover.strip().replace("'","").replace('"','')
     #     try:
-    #         upload_path = 'http://192.168.5.9:9092/party/posts-resource/batchAdd'
+    #         upload_path = 'http://192.168.1.1:9090/party/posts-resource/batchAdd'
     #         data = {
     #             "postsResourceList": [
     #                 {
@@ -778,7 +771,7 @@ def upload():
     #                     "picture": "",
     #                     "title": f"{cover_name}",
     #                     "video": "",
-    #                     "videoCoverImgUrl": "http://192.168.5.39/download/" + f"{datetime.datetime.today().strftime('%Y-%m-%d')}/coverimg/{cover_name}.jpg"
+    #                     "videoCoverImgUrl": "http://127.0.0.1/download/" + f"{datetime.datetime.today().strftime('%Y-%m-%d')}/coverimg/{cover_name}.jpg"
     #                 }
     #             ]
     #         }
@@ -806,7 +799,7 @@ def upload():
         #                     "overview": "",
         #                     "picture": "",
         #                     "title": f"{title}",
-        #                     "video": "http://192.168.5.39/download/" + f"{datetime.datetime.today().strftime('%Y-%m-%d')}/{url}",
+        #                     "video": "http://127.0.0.1/download/" + f"{datetime.datetime.today().strftime('%Y-%m-%d')}/{url}",
         #                     "videoCoverImgUrl": ""
         #                 }
         #             ]
@@ -912,6 +905,3 @@ if __name__ == '__main__':
     # os.system('start nginx.exe')
     # print('启动nginx服务')
     app.run(host='0.0.0.0', port=9966, debug=True)
-
-
-
