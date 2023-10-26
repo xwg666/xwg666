@@ -1,0 +1,228 @@
+import datetime
+import math
+import random
+import time
+import openai
+from fastapi import FastAPI,Request
+import uvicorn
+import pymysql
+
+messages = []
+app= FastAPI()
+def gpt(prompt):
+    print('开始调用GPT')
+    openai.api_key = random.choice(['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'])
+    # prompt = request.query_params.get('question')
+    messages = [{'role': 'user', "content": prompt}]
+    rsp =openai.ChatCompletion.create(
+        model="gpt-3.5-turbo-0613",
+        # model="text-davinci-003",
+        messages=messages,
+        temperature=0.95,
+        top_p=0.8,
+        max_tokens=2000,
+        stream=True
+    )
+    def data():
+        final_text = ''
+        for info in rsp:
+            if info['choices'][0]['finish_reason'] != 'stop':
+                final_text += info['choices'][0]['delta']['content']
+            else:
+                final_text += ' '
+            # yield "data: %s\n\n" % final_text.replace('\n', '<br />')
+        print(final_text)
+        return final_text
+    # return flask.Response(data(), mimetype="text/event-stream")
+    return data()
+
+async def is_true(question,num,userid):
+    totle = []  #存放多次评论
+    ll,count=0,0
+    judge = '判断下面语句，如果有语法不通顺,意思不理解或者语法错误等等，则返回"FALSE"；否则，返回"TRUE"。语句如下：' + question
+    result =gpt(judge)
+    print('result', result)
+
+    if 'FALSE' in result or 'false' in result:
+        return 'false,语法不对，结束调用'
+    else:
+        #分批次生成评论：
+        try:
+            if 0<num<=20:
+                n=1
+                count=num
+            elif 20<num:
+                n=math.ceil(num/20)
+                count=round(num/n)
+            # else:
+            #     return '一次不能超过100条'
+            print(n,count)
+            m=1
+            while True:
+                if m<=n:
+                    print('m，n的值：',m,n)
+                    if ll<num:
+                        rigth_answer=(f'对下面语句像微博一样进行{count}条评论，评论风格要符合中国人的语气，可以输出一些不相关的评论：幽默，恶搞，严肃，认可，反对，疑惑等，评论保持随机性，最后都放在一个列表里输出，不需要输出其他。'
+                                      f'严格遵守下面的格式样例：["评论内容1","评论内容2",...]。需要评论的语句如下：')+question
+                        print(rigth_answer)
+                        if 'TRUE' in result or 'true' in result:
+                            print('生成评论：')
+                            rs=gpt(rigth_answer)
+                            print('生成原始内容：',rs)
+                            rs=rs.strip().replace('\n','')
+                            word=['幽默','恶搞','严肃','认可','反对','疑惑','评论']
+                            for w in word:
+                                if w in rs:
+                                    rs=rs.replace(w,'')
+                            #检测生成结果是否多列表 (偶尔出现) 如['aaa']['bbb]
+                            sm=0
+                            for k in rs:
+                                if k==']':
+                                    sm+=1
+                            if sm>2:
+                                rs=rs.replace(']',',')
+
+                            #分割字符串加入列表
+                            ls = rs.split(",")
+                            for s in ls:
+                                if s not in totle:
+                                    totle.append(s.replace("[",'').replace("]",'').replace("'",'').replace("‘’",'').replace('“”',''))
+                            print('aaa',totle,ll)
+                            ll = len(totle)
+                            print('a列表长度',ll)
+                            m+=1
+                    else:
+                        break
+                else:
+                    count = num - ll
+                    print("剩余评论数：", count)
+                    if 5<=count<=20:
+                        rigth_answer = f'对下面语句像微博一样进行{count}条评论，评论风格要符合中国人的语气：幽默，恶搞，严肃，认可，反对，疑惑等,最后放在一个列表里输出，不需要输出其他。严格遵守下面的格式样例：["评论内容1","评论内容2",...]。需要评论的语句如下：' + question
+                        rs =gpt(rigth_answer)
+                        print('生成原始内容：', rs)
+                        rs = rs.strip().replace('\n', '')
+                        word = ['幽默', '恶搞', '严肃', '认可', '反对', '疑惑', '评论']
+                        for w in word:
+                            if w in rs:
+                                rs = rs.replace(w, '')
+
+                        # 检测生成结果是否多列表 (偶尔出现) ['aaa']['bbb]
+                        sm = 0
+                        for k in rs:
+                            if k == ']':
+                                sm += 1
+                        if sm > 2:
+                            rs = rs.replace(']', ',')  #将]替换为逗号，方便分割
+
+                        # 分割字符串加入列表
+                        ls = rs.split(",")
+                        for s in ls:
+                            if s not in totle:
+                                totle.append(s.replace("[", '').replace("]", '').replace("'", '').replace("‘’", '').replace('“”', ''))
+                        print('bbb', totle, ll)
+                        ll = len(totle)
+                        print('b列表长度',ll)
+                        break
+                    else:
+                        break
+        except:
+            print('分批次评论发生错误！')
+            pass
+
+    totle=str(totle).replace("'","").replace('"',"").replace(' ','').strip()
+    print('写入数据库的最终结果：',ll,totle)
+    if len(totle)==0:
+        return '生成失败'
+
+    m=1
+    while m<=3:
+        try:
+            # 尝试连接到数据库
+            conn = pymysql.connect(host="192.168.5.145", port=3306, database="python", user='chatgpt', password="xwg31415926...")
+            print("正在连接数据库")
+            cursor = conn.cursor()
+            cursor.execute(f'select count(*) from automatic_comment where id="{userid}"')
+
+            # 判断是否已经存在该用户,存在则把旧数据与新数据合并
+
+            if cursor.fetchone()[0]==1:
+                print("更新数据库")
+                cursor.execute(f'select content,judge,judge_len from automatic_comment where id="{userid}"')
+                contents = cursor.fetchall()
+                content = str(contents[0][0])
+                if question in content:
+                    print('标题相同，开始合并更新')
+                    judge=str(contents[0][1])
+                    judge=str(judge).replace(']',",")
+                    totle=judge+str(totle).replace('[',"")   #进行了字符串的合并
+
+                    judge_len=contents[0][2]
+                    print('旧数据',judge,judge_len)
+                    ll=judge_len+ll
+                    print('合并后的字符',totle,ll)
+                    cursor.execute(f'update automatic_comment set content="{question}",judge="{str(totle)}",judge_len="{ll}",date_time="{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}" where id="{userid}"')
+                    conn.commit()
+                else:
+                    print('标题不同，直接更新')
+                    cursor.execute(f'update automatic_comment set content="{question}",judge="{str(totle)}",judge_len="{ll}",date_time="{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}" where id="{userid}"')
+                    conn.commit()
+                    print('更新数据库成功')
+            else:
+                print("插入数据库")
+                cursor.execute(f'insert into automatic_comment(id,content,judge,judge_len,date_time) values("{userid}","{question}","{str(totle)}","{ll}","{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")')
+                conn.commit()
+
+            cursor.close()
+            break
+
+        except pymysql.Error as e:
+            print(f"连接错误: {e}")
+            print("正在重试连接...")
+            time.sleep(1)
+            m+=1
+    return totle
+@app.get('/serch')
+# @app.route('/serch',methods=['GET','POST'])
+async def serch(request:Request):
+    # id=request.args.get('id')
+    id=request.query_params.get('id')
+    mysql = pymysql.connect(host="192.168.5.145", port=3306, database="python", user='chatgpt',
+                           password="xwg31415926...")
+    print("查询数据库评论")
+    cursor = mysql.cursor()
+    cursor.execute(f"select judge,find_index from automatic_comment where id ={id}")
+
+    result = cursor.fetchall()
+    result=result[0]
+    judge=result[0]
+    find_index=result[1]
+    print(judge,find_index)
+    judge=str(judge).replace("[","").replace(']','').split(",")
+
+    try:
+        answer = judge[find_index]
+        find_index=find_index+1
+        cursor.execute(f"update automatic_comment set find_index={find_index} where id={id}")
+        mysql.commit()
+        print(answer)
+        return answer
+    except:
+        print("没有数据了")
+        return "没有数据了"
+
+@app.get('/create')
+async def sync(request:Request):
+    question = request.query_params.get('question').replace(' ', '').strip()
+    num = int(request.query_params.get('num', 5))
+    userid = request.query_params.get('id')
+    print(question, userid)
+    if len(question)==0:
+        return '请输入问题'
+    print('异步调用')
+    result=await is_true(question,num,userid)
+    print('result',result)
+    return 'ok'
+
+if __name__ == '__main__':
+    # app.run(host='0.0.0.0', port=5000)
+    uvicorn.run(app, host='0.0.0.0', port=5005)
